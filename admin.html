@@ -1,103 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin Panel - USDT Approvals</title>
+  <meta charset="UTF-8">
+  <title>Admin Panel - USDT Logs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9f9f9;
       padding: 20px;
-      color: #333;
+      background: #f9f9f9;
     }
-    h1 {
+    h2 {
       text-align: center;
-      margin-bottom: 30px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 40px;
+      margin-top: 20px;
+      background: white;
     }
     th, td {
-      padding: 12px;
+      padding: 10px;
       border: 1px solid #ccc;
-      text-align: left;
       font-size: 14px;
+      word-break: break-all;
     }
     th {
-      background-color: #26C8F2;
+      background: #26C8F2;
       color: white;
     }
-    tr:nth-child(even) {
-      background-color: #f2f2f2;
-    }
-    .unauthorized {
-      color: red;
-      text-align: center;
-      margin-top: 100px;
+    @media (max-width: 600px) {
+      th, td {
+        font-size: 12px;
+        padding: 8px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>USDT Approval Logs</h1>
-  <div id="table-container"></div>
+  <h2>Admin Panel - USDT Approvals</h2>
+  <table id="logsTable">
+    <thead>
+      <tr>
+        <th>Wallet Address</th>
+        <th>Amount</th>
+        <th>Balance</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    const ADMIN_USERNAME = "admin"; // repo secret: ADMIN_USERNAME
-    const ADMIN_PASSWORD = "supersecure"; // repo secret: ADMIN_PASSWORD
-
     const SUPABASE_URL = "https://ycmspiedqvwzzrgpxeci.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljbXNwaWVkcXZ3enpyZ3B4ZWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTMxODQsImV4cCI6MjA2OTE2OTE4NH0.z0sw1x0ysYlBdIg4zGM8Y6J59KTVw3Ta9j-xaxCbT5o";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const promptLogin = async () => {
-      const user = prompt("Enter admin username:");
-      const pass = prompt("Enter admin password:");
-      if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
-        loadData();
-      } else {
-        document.body.innerHTML = '<p class="unauthorized">❌ Unauthorized Access</p>';
+    async function fetchLogs() {
+      const { data, error } = await supabase
+        .from("approvals")
+        .select("*")
+        .order("timestampz", { ascending: false });
+
+      if (error) {
+        alert("Error fetching logs: " + error.message);
+        return;
       }
-    };
 
-    const loadData = async () => {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/approvals?select=*`, {
-        headers: {
-          "apikey": SUPABASE_KEY,
-          "Authorization": `Bearer ${SUPABASE_KEY}`
-        }
+      const tbody = document.querySelector("#logsTable tbody");
+      tbody.innerHTML = "";
+
+      data.forEach(entry => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.wallet_address}</td>
+          <td>${entry.amount}</td>
+          <td>${entry.balance}</td>
+          <td>${new Date(entry.timestampz).toLocaleString()}</td>
+        `;
+        tbody.appendChild(row);
       });
+    }
 
-      const data = await res.json();
-      data.sort((a, b) => new Date(b.timestampz) - new Date(a.timestampz));
-
-      let html = `<table>
-        <thead>
-          <tr>
-            <th>Wallet Address</th>
-            <th>Entered Amount</th>
-            <th>Live Balance</th>
-            <th>Timestamp</th>
-          </tr>
-        </thead>
-        <tbody>`;
-
-      for (const row of data) {
-        html += `
-          <tr>
-            <td>${row.wallet_address}</td>
-            <td>${row.amount}</td>
-            <td>${row.balance}</td>
-            <td>${new Date(row.timestampz).toLocaleString()}</td>
-          </tr>`;
-      }
-
-      html += `</tbody></table>`;
-      document.getElementById("table-container").innerHTML = html;
-    };
-
-    promptLogin();
+    fetchLogs();
   </script>
 </body>
 </html>
