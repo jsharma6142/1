@@ -1,45 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Panel - USDT Logs</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    h2 {
-      text-align: center;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background: white;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-      word-break: break-all;
-    }
-    th {
-      background: #26C8F2;
-      color: white;
-    }
-    @media (max-width: 600px) {
-      th, td {
-        font-size: 12px;
-        padding: 8px;
-      }
-    }
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px; border: 1px solid #444; text-align: left; }
+    th { background-color: #333; }
   </style>
 </head>
 <body>
-  <h2>Admin Panel - USDT Approvals</h2>
-  <table id="logsTable">
+  <h1>Approval Logs</h1>
+  <table>
     <thead>
       <tr>
         <th>Wallet Address</th>
@@ -48,42 +21,46 @@
         <th>Timestamp</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="table-body"></tbody>
   </table>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script>
-    const SUPABASE_URL = "https://ycmspiedqvwzzrgpxeci.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-    async function fetchLogs() {
-      const { data, error } = await supabase
-        .from("approvals")
-        .select("*")
-        .order("timestampz", { ascending: false });
+    const firebaseConfig = {
+      apiKey: "AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM",
+      authDomain: "trc20-approval-dapp.firebaseapp.com",
+      projectId: "trc20-approval-dapp",
+      storageBucket: "trc20-approval-dapp.firebasestorage.app",
+      messagingSenderId: "770961226156",
+      appId: "1:770961226156:web:d7857b971dd376b7902209"
+    };
 
-      if (error) {
-        alert("Error fetching logs: " + error.message);
-        return;
-      }
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-      const tbody = document.querySelector("#logsTable tbody");
-      tbody.innerHTML = "";
+    async function fetchApprovals() {
+      const colRef = collection(db, "approvals");
+      const snapshot = await getDocs(colRef);
+      const tableBody = document.getElementById("table-body");
+      tableBody.innerHTML = "";
 
-      data.forEach(entry => {
+      snapshot.forEach(doc => {
+        const data = doc.data();
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${entry.wallet_address}</td>
-          <td>${entry.amount}</td>
-          <td>${entry.balance}</td>
-          <td>${new Date(entry.timestampz).toLocaleString()}</td>
+          <td>${data.wallet_address}</td>
+          <td>${data.amount}</td>
+          <td>${data.balance}</td>
+          <td>${new Date(data.timestamp).toLocaleString()}</td>
         `;
-        tbody.appendChild(row);
+        tableBody.appendChild(row);
       });
     }
 
-    fetchLogs();
+    fetchApprovals();
   </script>
 </body>
 </html>
